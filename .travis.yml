@@ -1,0 +1,21 @@
+language: generic
+env:
+  global:
+    - CLI_VERSION=latest
+  matrix:
+    - BOARD="esp32:esp32:esp32"
+cache:
+  directories:
+    - $HOME/.arduino15/packages/
+before_install:
+  - curl --location https://downloads.arduino.cc/arduino-cli/arduino-cli_${CLI_VERSION}_Linux_64bit.tar.gz | tar --extract --gzip
+  - ./arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json 
+  - if [[ "$BOARD" =~ "esp32:esp32:" ]]; then
+      ./arduino-cli core install esp32:esp32 --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json;
+    fi
+install:
+  - ./arduino-cli lib install FastLED
+script:
+  - ./arduino-cli compile --fqbn $BOARD
+branches:
+  only: [master]
