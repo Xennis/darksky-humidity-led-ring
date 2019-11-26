@@ -1,3 +1,4 @@
+#include <ArduinoJson.h>
 #include <FastLED.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -48,13 +49,7 @@ WiFiClientSecure client;
 void setup() {
   // Setup serial
   Serial.begin(115200);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
-
-  // Setup LED ring
-  Serial.print("Setup LED");
-  FastLED.addLeds<WS2812B, LED_DATA_PIN, BRG>(leds, NUM_LEDS);
+  while (!Serial) continue;
 
   // Setup WiFi connection
   Serial.print("WiFi connecting to SSID: ");
@@ -70,6 +65,9 @@ void setup() {
 
   // Setup WiFi client
   client.setCACert(apiRootCA);
+
+  // Setup LED ring
+  FastLED.addLeds<WS2812B, LED_DATA_PIN, BRG>(leds, NUM_LEDS);
 }
 
 void loop() {
@@ -100,9 +98,20 @@ void loop() {
         break;
       }
     }
-    while (client.available()) {
-      char c = client.read();
-      Serial.write(c);
+
+    // Enough space for:
+    // + 4 objects with 1 members
+    // + 1 object with 17 members
+    const int capacity = 4 * JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(17);
+    StaticJsonDocument<1000> doc;
+    DeserializationError error = deserializeJson(doc, client);
+    if (error) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(error.c_str());
+    } else {
+      float precip = doc["currently"]["precipProbability"];
+      Serial.println("Precip: ");
+      Serial.print(precip);
     }
 
     client.stop();
