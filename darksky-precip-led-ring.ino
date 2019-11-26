@@ -99,11 +99,11 @@ void loop() {
       }
     }
 
-    // Enough space for:
-    // + 4 objects with 1 members
-    // + 1 object with 17 members
-    const int capacity = 4 * JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(17);
-    StaticJsonDocument<1000> doc;
+    // Calculated with https://arduinojson.org/v6/assistant/
+    const int capacity = JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(17) + 253 + 100;
+    Serial.println("capacity: ");
+    Serial.print(capacity);
+    StaticJsonDocument<capacity> doc;
     DeserializationError error = deserializeJson(doc, client);
     if (error) {
       Serial.print(F("deserializeJson() failed: "));
