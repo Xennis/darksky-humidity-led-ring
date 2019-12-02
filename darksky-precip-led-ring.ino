@@ -3,14 +3,13 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 
-// How many leds in your strip?
-#define NUM_LEDS 24
 
-// LED data line
+#define LED_TYPE WS2812B
+#define LED_COLOR_ORDER GRB
 #define LED_DATA_PIN 2
-
-// Define the array of leds
-CRGB leds[NUM_LEDS];
+#define LED_BRIGHTNESS 10
+#define NUM_LEDS 24
+CRGB leds[NUM_LEDS]; // Define the array of leds
 
 const char* ssid = "WIFI SSID";          // network SSID (name)
 const char* pass = "WIFI PASS";          // network password
@@ -67,55 +66,63 @@ void setup() {
   client.setCACert(apiRootCA);
 
   // Setup LED ring
-  FastLED.addLeds<WS2812B, LED_DATA_PIN, BRG>(leds, NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, LED_DATA_PIN, LED_COLOR_ORDER>(leds, NUM_LEDS);
+  FastLED.setBrightness(LED_BRIGHTNESS);
+  FastLED.clear();
 }
 
 void loop() {
-  Serial.print("Action");
-  leds[0] = CRGB::Blue;
-  leds[1] = CRGB::Red;
-  leds[2] = CRGB::Green;
-  FastLED.show();
-
   Serial.print("Requesting URL: ");
   Serial.println(apiHost + apiPath);
 
   Serial.println("Starting connection to server...");
-  if (!client.connect(apiHost, 443))
+  if (!client.connect(apiHost, 443)) {
     Serial.println("Connection failed!");
-  else {
-    Serial.println("Connected to server!");
-
-    client.println(String("GET https://") + apiHost + apiPath + " HTTP/1.0");
-    client.println(String("Host: ") + apiHost);
-    client.println("Connection: close");
-    client.println();
-
-    while (client.connected()) {
-      String line = client.readStringUntil('\n');
-      if (line == "\r") {
-        Serial.println("headers received");
-        break;
-      }
-    }
-
-    // Calculated with https://arduinojson.org/v6/assistant/
-    const int capacity = JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(17) + 253 + 100;
-    Serial.println("capacity: ");
-    Serial.print(capacity);
-    StaticJsonDocument<capacity> doc;
-    DeserializationError error = deserializeJson(doc, client);
-    if (error) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.c_str());
-    } else {
-      float precip = doc["currently"]["precipProbability"];
-      Serial.println("Precip: ");
-      Serial.print(precip);
-    }
-
-    client.stop();
+    delay(200000);
+    return;
   }
+  Serial.println("Connected to server!");
+
+  client.println(String("GET https://") + apiHost + apiPath + " HTTP/1.0");
+  client.println(String("Host: ") + apiHost);
+  client.println("Connection: close");
+  client.println();
+
+  while (client.connected()) {
+    String line = client.readStringUntil('\n');
+    if (line == "\r") {
+      Serial.println("headers received");
+      break;
+    }
+  }
+
+  // Calculated with https://arduinojson.org/v6/assistant/
+  const int capacity = JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(17) + 253 + 100;
+  Serial.println("capacity: ");
+  Serial.print(capacity);
+  StaticJsonDocument<capacity> doc;
+  DeserializationError error = deserializeJson(doc, client);
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    delay(200000);
+    return;
+  }
+
+  float precip = doc["currently"]["precipProbability"];
+  client.stop();
+
+  int r = round(NUM_LEDS * precip);
+  Serial.println("Precip: ");
+  Serial.print(precip);
+  Serial.print(" ");
+  Serial.print(r);
+
+  for (int led = 0; led < r; led++) {
+    leds[led] = CRGB::Blue;
+    delay(50);
+  }
+  FastLED.show();
 
   delay(200000);
 }
